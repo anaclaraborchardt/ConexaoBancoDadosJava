@@ -1,121 +1,39 @@
 import java.sql.*;
-import java.util.HashSet;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 public class Main {
 
-    public static void main(String[] args){
-        //How to access DB
-        //File - ProjectStructure - Libraries - + - ArquivosDeProgramas(x86) - MySQL - Conector J (zipado)
+    public static void main(String[] args) {
 
-        //URL:
-        //Padrão de início da url: jdbc:mysql://
-        //Após colocar o servidor e a porta de onde ele vai estar
-        //Qual banco de dados vou estabelecer a conexão - Database criada no Mysql
+        try (Connection connection = Conexao.conectar()) {
+            //NOVO USUÁRIO
+            Usuario usuario = new Usuario(900, "ana", "ana'", 17,
+                    new Carro(3, "Ford", "preto",
+                            "ka", 70000, 2020));
 
-        String urlBanco = "jdbc:mysql://localhost:3306/javaDB";
-        String usuarioBanco = "root";
-        String senhaUsuario = "root";
+            Usuario usuario2 = new Usuario(900, "ana", "ana'", 17,
+                    new Carro(3, "Ford", "preto",
+                            "ka", 70000, 2020));
 
-        //Conexão utilizando o driver do mysql
-        //O método getConnection implementa uma exceção checada
-        //Try with resources - A connection é Autocloseable:
-        //Sendo autocloseable, não preciso fechar a conexão
-        try (Connection connection =
-                     DriverManager.getConnection(urlBanco, usuarioBanco, senhaUsuario);){
-//            inserir(connection, new Usuario(5,
-//                    "ana",
-//                    "ana'",
-//                    17));
-            //Preciso do toString
-            System.out.println(buscarTodos(connection));
-            System.out.println(buscarUmUsuario(1, connection));
-            System.out.println(buscarUmUsuario("ana", connection));
-            //Ao final da conexão, ela precisa ser finalizada:
-            connection.close();
-        } catch (SQLException exception) {
-            throw new RuntimeException(exception);
-            //o finally é executado dando exceção ou não
-//        } finally {
-//
+            try (ICrud<Carro, Integer> crudCarro = new CarroDAO(connection);
+                 ICrud<Usuario, Integer> crudUsuario = new UsuarioDAO(connection)) {
+                try {
+                    crudCarro.buscarUm(usuario.getCarro().getId());
+                    System.out.println(crudUsuario.buscarTodos());
+                    System.out.println(crudUsuario.buscarUm(900));
+                    crudUsuario.editar(usuario2, 18);
+                    crudUsuario.deletar(9);
+                    System.out.println(crudUsuario.buscarTodos());
+                } catch (NoSuchElementException exception) {
+                    crudCarro.inserir(usuario.getCarro());
+                }
+                crudUsuario.inserir(usuario);
+            } catch (Exception e) {
+                throw new RuntimeException();
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
         }
     }
-
-    static void inserir(Connection connection, Usuario usuario){
-        //statement também possui exceção checada
-        try {
-            //statement é o comando interpretado pelo mysql
-            Statement statement = connection.createStatement();
-            String comandoSQL = "insert into usuarios values("
-                    + usuario.getId() + ", '" +
-                    usuario.getNome() + "' , '" +
-                    usuario.getSenha() + "' , " +
-                    usuario.getIdade() +")";
-            statement.execute(comandoSQL);
-        }catch(SQLException e){
-            throw new RuntimeException(e);
-        }
-    }
-
-    static Set<Usuario> buscarTodos(Connection connection){
-    String comandoSQL = "Select * from usuarios;";
-
-    try{
-        Statement statement = connection.createStatement();
-        //O resultSet retorna um boolean
-        //resultSet é iterável: ele sabe quem é o próximo e vai
-        //percorrendo a lista do bd
-        ResultSet resultSet = statement.executeQuery(comandoSQL);
-        Set<Usuario> listaUsuario = new HashSet<>();
-
-        while(resultSet.next()){
-            //Aqui eu posso passar tanto o número da coluna, quanto o nome da mesma
-            int id = resultSet.getInt(1);
-            int idade = resultSet.getInt(4);
-            String nome = resultSet.getString(2);
-            String senha = resultSet.getString(3);
-            Usuario usuario = new Usuario(id, nome, senha, idade);
-            listaUsuario.add(usuario);
-        }
-        return listaUsuario;
-    }catch (SQLException e){
-        throw new RuntimeException(e);
-    }
-    }
-
-    static Usuario buscarUmUsuario(Integer id, Connection connection){
-        String comandoSQL = "Select * from usuarios where idUsuario = " + id;
-
-        try(Statement statement = connection.createStatement()){
-            ResultSet resultSet = statement.executeQuery(comandoSQL);
-
-            resultSet.next();
-                int idade = resultSet.getInt(4);
-                String nome = resultSet.getString(2);
-                String senha = resultSet.getString(3);
-                return new Usuario(id, nome, senha, idade);
-
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    static Usuario buscarUmUsuario(String nome, Connection connection){
-        String comandoSQL = "Select * from usuarios where nome = " + "'" + nome + "'";
-
-        try(Statement statement = connection.createStatement()){
-            ResultSet resultSet = statement.executeQuery(comandoSQL);
-
-            resultSet.next();
-                int id = resultSet.getInt(1);
-                int idade = resultSet.getInt(4);
-                String senha = resultSet.getString(3);
-                return new Usuario(id, nome, senha, idade);
-
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
 }
